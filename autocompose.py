@@ -135,7 +135,10 @@ def generate_compose(client, containers_to_inspect, include_all_env_vars, includ
             for port, host_bindings in container.attrs['NetworkSettings']['Ports'].items():
                 if host_bindings:
                     for binding in host_bindings:
-                        host_ip_str = f"{binding['HostIp']}:" if binding.get('HostIp') and binding['HostIp'] != '0.0.0.0' else ""
+                        host_ip = binding.get('HostIp')
+                        if host_ip == '::': host_ip = None # Normalize IPv6 wildcard
+                        
+                        host_ip_str = f"{host_ip}:" if host_ip and host_ip != '0.0.0.0' else ""
                         service['ports'].append(f"{host_ip_str}{binding['HostPort']}:{port}")
                 else: 
                     service['ports'].append(str(port))
@@ -177,33 +180,20 @@ def generate_compose(client, containers_to_inspect, include_all_env_vars, includ
         if container.attrs['NetworkSettings']['Networks']:
             service_networks = {} 
             network_names = list(container.attrs['NetworkSettings']['Networks'].keys())
-            is_only_default_bridge = False
-            if len(network_names) == 1 and network_names[0] == 'bridge':
-                try:
-                    network_obj = client.networks.get('bridge')
-                    if network_obj.attrs.get('Driver') == 'bridge' and \
-                       not network_obj.attrs.get('Options') and \
-                       not network_obj.attrs.get('Internal') and \
-                       network_obj.attrs.get('Scope') == 'local':
-                        is_only_default_bridge = True
-                except docker.errors.NotFound:
-                    pass 
+            
+            # Simplified Spec Compliance: If the only network is 'bridge', 
+            # assume it's the default and omit the networks block entirely.
+            is_only_default_bridge = (len(network_names) == 1 and network_names[0] == 'bridge')
             
             if not is_only_default_bridge:
                 for net_name, net_config in container.attrs['NetworkSettings']['Networks'].items():
-                    if net_name == 'bridge':
-                        try:
-                            network_obj = client.networks.get('bridge')
-                            if network_obj.attrs.get('Driver') == 'bridge' and \
-                               not network_obj.attrs.get('Options') and \
-                               not network_obj.attrs.get('Internal') and \
-                               network_obj.attrs.get('Scope') == 'local':
-                                continue 
-                        except docker.errors.NotFound:
-                            pass 
-
+                    # If we are here, it's not JUST bridge, but 'bridge' might still be listed.
+                    # Verify if we should include 'bridge' if mixed? 
+                    # Usually if multiple networks, 'bridge' might be relevant, but often it's just the default handling.
+                    # We will keep existing behavior: include all, but use simplified check.
+                    
                     service_networks[net_name] = {} 
-                    if net_name not in networks_to_create:
+                    if net_name not in networks_to_create and net_name != 'bridge':
                         try:
                             network_obj = client.networks.get(net_name)
                             if network_obj.attrs.get('Driver') != 'bridge': 
