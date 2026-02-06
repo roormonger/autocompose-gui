@@ -139,9 +139,13 @@ def generate_compose(client, containers_to_inspect, include_all_env_vars, includ
                         if host_ip == '::': host_ip = None # Normalize IPv6 wildcard
                         
                         host_ip_str = f"{host_ip}:" if host_ip and host_ip != '0.0.0.0' else ""
-                        service['ports'].append(f"{host_ip_str}{binding['HostPort']}:{port}")
+                        port_str = f"{host_ip_str}{binding['HostPort']}:{port}"
+                        if port_str not in service['ports']:
+                            service['ports'].append(port_str)
                 else: 
-                    service['ports'].append(str(port))
+                    port_str = str(port)
+                    if port_str not in service['ports']:
+                        service['ports'].append(port_str)
             if service.get('ports'): 
                  sys.stderr.write(f"[DEBUG AUTOCOMPOSE] Service '{service_name}': Ports: {service['ports']}\n")
 
