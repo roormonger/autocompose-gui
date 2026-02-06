@@ -10,7 +10,10 @@ services:
       - GITHUB_UPLOAD_PATH= #Optional - Path in the above repo. Leave blank for root
       - GITHUB_UPLOAD_BRANCH=BRANCH #Optional - Repo branch
       - GITHUB_UPLOAD_COMMIT_MSG= #Optional - The commit message. If blank default to "Autocompose-GUI_(TIMESTAMP)" 
+      - GITHUB_UPLOAD_COMMIT_MSG= #Optional - The commit message. If blank default to "Autocompose-GUI_(TIMESTAMP)" 
       - FLASK_SECRET_KEY=YOUR_FLASK_KEY #Required - Make up whatever you want
+      - PUID=1000 #Optional - User ID for file ownership (prevents root-owned files)
+      - PGID=1000 #Optional - Group ID for file ownership
     labels:
       - AUTOCOMPOSE_EXCLUDE=GITHUB_TOKEN,FLASK_SECRET_KEY #Optional - Add this to any container that has ENV variables you dont want in the output compose files. Just use a comma seperated list of ENV varibles to exclude
     ports:

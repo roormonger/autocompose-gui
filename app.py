@@ -367,14 +367,35 @@ def index():
             else:
                 if batch_action_value == "save_all_local":
                     saved_count = 0
+                    
+                    # File Permission Handling (PUID/PGID)
+                    try:
+                        puid = int(os.environ.get('PUID', -1))
+                        pgid = int(os.environ.get('PGID', -1))
+                    except ValueError:
+                        puid, pgid = -1, -1
+
                     for file_info in current_batch:
                         final_output_dir_for_batch = os.path.join(GENERATED_FILES_BASE_OUTPUT_DIR, file_info['subdir_name'])
                         final_save_path = os.path.join(final_output_dir_for_batch, file_info['filename'])
                         try:
                             os.makedirs(final_output_dir_for_batch, exist_ok=True)
+                            
+                            # If we are changing ownership, we should probably do the dir too, but standard practice usually focuses on files.
+                            # However, if root creates the dir, user might not be able to write to it later? 
+                            # Let's chown the directory first if needed.
+                            if puid != -1 and pgid != -1:
+                                try: os.chown(final_output_dir_for_batch, puid, pgid)
+                                except Exception: pass # Ignore if we can't
+
                             with open(file_info['temp_path'], 'r', encoding='utf-8') as src_f, \
                                  open(final_save_path, 'w', encoding='utf-8') as dest_f:
                                 dest_f.write(src_f.read())
+                            
+                            # Chown the file
+                            if puid != -1 and pgid != -1:
+                                os.chown(final_save_path, puid, pgid)
+
                             ls_msg = f"✅ Saved to local volume: `{file_info['subdir_name']}/{file_info['filename']}`."
                             ls_cat = "success"
                             saved_count +=1
