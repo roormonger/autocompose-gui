@@ -304,6 +304,24 @@ def main():
         def increase_indent(self, flow=False, indentless=False):
             return super(MyDumper, self).increase_indent(flow, False)
 
+    def string_representer(dumper, data):
+        # Force double quotes for boolean-like strings or those with colons (ports)
+        # to prevent YAML parsing ambiguity (V5 Spec compliance).
+        should_quote = False
+        lower_data = data.lower()
+        if lower_data in ['true', 'false', 'yes', 'no', 'on', 'off']:
+            should_quote = True
+        elif ':' in data and not (data.startswith('"') and data.endswith('"')): 
+            # Check for colons (ports, images with tags usually okay but safe to quote)
+            # Ensure we don't double quote if logic elsewhere added quotes (though our logic adds raw strings)
+            should_quote = True
+        
+        if should_quote:
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+    MyDumper.add_representer(str, string_representer)
+
     pyaml.dump(compose_config, sys.stdout, Dumper=MyDumper, default_flow_style=False, sort_keys=False)
 
 if __name__ == "__main__":
