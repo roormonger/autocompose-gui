@@ -229,6 +229,17 @@ def api_toggle_selection():
     is_selected, count = toggle_container_selection_ajax(container_id, container_name)
     return jsonify(success=True, id=container_id, name=container_name, selected=is_selected, selected_count=count)
 
+@app.route('/update_columns', methods=['POST'])
+def update_columns():
+    data = request.get_json()
+    try:
+        num_cols = int(data.get('num_cols', 3))
+        session['num_cols'] = max(1, min(5, num_cols)) 
+        session.modified = True
+        return jsonify(success=True, message=f"Columns updated to {num_cols}")
+    except (ValueError, TypeError):
+        return jsonify(success=False, message="Invalid column value"), 400
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():

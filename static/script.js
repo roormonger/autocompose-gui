@@ -308,4 +308,56 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize the grid with the current slider value
         updateGridColumns(columnSlider.value);
     }
+
+    // --- Loading Overlay Logic ---
+    const loadingOverlay = document.getElementById('loading-overlay');
+    function showLoading() {
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+    }
+    function hideLoading() {
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+    }
+
+    // Attach to all forms
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function (event) {
+            // Check if the submission was triggered by a specific button
+            // If it's a download button, we might want to avoid getting stuck in loading state
+            // or use a timeout.
+            // Since submit events bubble, we can check document.activeElement (approximate)
+            // or just rely on the fact that downloads don't unload the page.
+
+            const activeBtn = document.activeElement;
+            let isDownload = false;
+
+            if (activeBtn && activeBtn.value === 'download_all_zip') {
+                isDownload = true;
+            }
+
+            // Also check if any button in the form with that name/value was clicked?
+            // Slightly hard with submit event.
+            // But activeElement is usually reliable for click-triggered submits.
+
+            if (isDownload) {
+                // For download, show brief loading then hide? 
+                // Or don't show at all. 
+                // Let's show "Preparing..." then hide after a few seconds as a heuristic.
+                showLoading();
+                const msg = document.getElementById('loading-message');
+                if (msg) msg.textContent = "Preparing ZIP...";
+                setTimeout(() => {
+                    hideLoading();
+                    if (msg) msg.textContent = "Processing...";
+                }, 3000);
+            } else {
+                showLoading();
+            }
+        });
+    });
+
+    // Hide loading on page show (bfcache restoration)
+    window.addEventListener('pageshow', function (event) {
+        hideLoading();
+    });
 });
