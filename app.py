@@ -319,7 +319,6 @@ def index():
                         if temp_path: 
                             temp_generated_files_info_for_session.append({
                                 "filename": simple_filename, 
-                                "content": stdout, 
                                 "subdir_name": subdir, 
                                 "temp_path": temp_path 
                             })
@@ -381,9 +380,18 @@ def index():
                     else:
                         uploaded_count = 0
                         for file_info in current_batch:
+                            # Read content from file
+                            try:
+                                with open(file_info['temp_path'], 'r', encoding='utf-8') as f:
+                                    file_content = f.read()
+                            except Exception as e:
+                                logger.error(f"Error reading temp file {file_info['temp_path']} for GitHub upload: {e}")
+                                post_specific_job_history.append({'filename': file_info['filename'], 'operation': 'Batch GitHub Upload', 'message': f"Read Error: {e}", 'category': 'danger', 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+                                continue
+
                             gh_msg, gh_category = _upload_to_github_internal(
                                 GITHUB_TOKEN_FROM_ENV, GITHUB_TARGET_REPO_ENV, GITHUB_UPLOAD_PATH_ENV,
-                                file_info['subdir_name'], file_info['content'], file_info['filename'], 
+                                file_info['subdir_name'], file_content, file_info['filename'], 
                                 USER_SET_GITHUB_COMMIT_MSG, GITHUB_UPLOAD_BRANCH_ENV
                             )
                             post_specific_job_history.append({'filename': f"{file_info['subdir_name']}/{file_info['filename']}", 'operation': 'Batch GitHub Upload', 'message': gh_msg, 'category': gh_category, 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
@@ -396,7 +404,12 @@ def index():
                     zip_filename = f"{zip_subdir_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
                     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
                         for file_item in current_batch:
-                            zf.writestr(os.path.join(file_item['subdir_name'], file_item['filename']), file_item['content'])
+                             try:
+                                with open(file_item['temp_path'], 'r', encoding='utf-8') as f:
+                                    content = f.read()
+                                zf.writestr(os.path.join(file_item['subdir_name'], file_item['filename']), content)
+                             except Exception as e:
+                                logger.error(f"Error reading temp file {file_item['temp_path']} for ZIP: {e}")
                     memory_file.seek(0)
                     post_specific_job_history.append({'filename': zip_filename, 'operation': 'ZIP Download', 'message': f"ZIP file '{zip_filename}' prepared.", 'category': 'info', 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
                     session['job_history'] = post_specific_job_history + session.get('job_history', [])[:49]
@@ -418,6 +431,18 @@ def index():
     elif current_sort_by == 'created': running_containers_data.sort(key=lambda c: datetime.strptime(c.get('created', '1970-01-01 00:00:00'), '%Y-%m-%d %H:%M:%S'), reverse=reverse_sort)
     elif current_sort_by == 'image': running_containers_data.sort(key=lambda c: c.get('image', '').lower(), reverse=reverse_sort)
     
+    # Hydrate content for display
+    hydrated_batch_files = []
+    for f_info in generated_files_for_template:
+        f_info_copy = f_info.copy()
+        if 'content' not in f_info_copy and 'temp_path' in f_info_copy:
+             try:
+                with open(f_info_copy['temp_path'], 'r', encoding='utf-8') as f:
+                    f_info_copy['content'] = f.read()
+             except Exception:
+                f_info_copy['content'] = "Error reading file content."
+        hydrated_batch_files.append(f_info_copy)
+
     template_context = {
         "containers": running_containers_data,
         "selected_containers": session.get('selected_containers', {}),
@@ -432,7 +457,7 @@ def index():
         "GITHUB_UPLOAD_PATH_ENV": GITHUB_UPLOAD_PATH_ENV,
         "GITHUB_UPLOAD_BRANCH_ENV": GITHUB_UPLOAD_BRANCH_ENV,
         "USER_SET_GITHUB_COMMIT_MSG": USER_SET_GITHUB_COMMIT_MSG, 
-        "generated_files": generated_files_for_template, 
+        "generated_files": hydrated_batch_files, 
         "job_history": current_job_history, 
         "current_batch_files": session.get('current_batch_files', []) 
     }

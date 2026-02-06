@@ -36,8 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Job History Modal ---
     const jobHistoryModal = document.getElementById('job-history-modal');
-    const jobHistoryBtn = document.getElementById('job-history-btn');    
-    const jobHistoryModalCloseBtn = document.getElementById('job-history-modal-close-btn'); 
+    const jobHistoryBtn = document.getElementById('job-history-btn');
+    const jobHistoryModalCloseBtn = document.getElementById('job-history-modal-close-btn');
 
     if (jobHistoryBtn) {
         jobHistoryBtn.addEventListener('click', () => {
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.addEventListener('keydown', function(event) {
+    document.addEventListener('keydown', function (event) {
         if (event.key === "Escape" || event.key === "Esc") {
             if (jobHistoryModal && jobHistoryModal.style.display === 'block') {
                 jobHistoryModal.style.display = 'none';
@@ -66,8 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- AJAX for Container Selection & Dynamic Button Disabling ---
-    const containerCards = document.querySelectorAll('.container-card'); 
-    const selectedCountDisplay = document.getElementById('selected-count-display'); 
+    const containerCards = document.querySelectorAll('.container-card');
+    const selectedCountDisplay = document.getElementById('selected-count-display');
     const generateStackBtn = document.getElementById('generate-stack-btn');
     const generateIndividualsBtn = document.getElementById('generate-individuals-btn');
 
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateGenerateButtonsState(count) {
         const hasSelection = count > 0;
         console.log(`[Debug JS] updateGenerateButtonsState called with count: ${count}. Has selection: ${hasSelection}`);
-        
+
         if (generateStackBtn) {
             console.log(`[Debug JS] generateStackBtn found. Current disabled: ${generateStackBtn.disabled}. Setting to: ${!hasSelection}`);
             generateStackBtn.disabled = !hasSelection;
@@ -131,10 +131,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     containerCards.forEach(card => {
-        card.addEventListener('click', async function() {
+        card.addEventListener('click', async function () {
             const containerId = this.dataset.containerId;
             const containerName = this.dataset.containerName;
-            
+
             if (!containerId || !containerName) {
                 console.error('Card is missing data-container-id or data-container-name');
                 return;
@@ -203,23 +203,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.getElementById('save-to-local-btn').addEventListener('click', async () => {
-        try {
-            const jobId = await initiateJob('save_to_local', getCurrentFiles());
-            pollJobStatus(jobId, updateSaveToLocalUI);
-        } catch (error) {
-            alert('Error initiating save to local: ' + error.message);
-        }
-    });
+    const saveToLocalBtn = document.getElementById('save-to-local-btn');
+    if (saveToLocalBtn) {
+        saveToLocalBtn.addEventListener('click', async () => {
+            try {
+                const jobId = await initiateJob('save_to_local', getCurrentFiles());
+                pollJobStatus(jobId, updateSaveToLocalUI);
+            } catch (error) {
+                alert('Error initiating save to local: ' + error.message);
+            }
+        });
+    }
 
-    document.getElementById('upload-to-github-btn').addEventListener('click', async () => {
-        try {
-            const jobId = await initiateJob('upload_to_github', getCurrentFiles());
-            pollJobStatus(jobId, updateUploadToGithubUI);
-        } catch (error) {
-            alert('Error initiating GitHub upload: ' + error.message);
-        }
-    });
+    const uploadToGithubBtn = document.getElementById('upload-to-github-btn');
+    if (uploadToGithubBtn) {
+        uploadToGithubBtn.addEventListener('click', async () => {
+            try {
+                const jobId = await initiateJob('upload_to_github', getCurrentFiles());
+                pollJobStatus(jobId, updateUploadToGithubUI);
+            } catch (error) {
+                alert('Error initiating GitHub upload: ' + error.message);
+            }
+        });
+    }
 
     function updateSaveToLocalUI(status) {
         const statusElement = document.getElementById('save-to-local-status');
@@ -245,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const flashContainer = document.createElement('div');
         flashContainer.className = `alert alert-${category}`;
         flashContainer.textContent = message;
-        
+
         const flashMessageContainer = document.getElementById('flash-message-container');
         if (flashMessageContainer) {
             const existingFlash = flashMessageContainer.querySelector('.alert');
@@ -253,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 flashMessageContainer.removeChild(existingFlash);
             }
             flashMessageContainer.appendChild(flashContainer);
-            
+
             setTimeout(() => {
                 flashContainer.remove();
             }, 5000);  // Remove the flash message after 5 seconds
@@ -282,20 +288,20 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             body: JSON.stringify({ num_cols: value })
         }).then(response => response.json())
-          .then(data => {
-              if (data.success) {
-                  console.log('Column update response:', data.message);
-              } else {
-                  console.error('Error updating columns:', data.message);
-              }
-          })
-          .catch(error => console.error('Error updating columns:', error));
+            .then(data => {
+                if (data.success) {
+                    console.log('Column update response:', data.message);
+                } else {
+                    console.error('Error updating columns:', data.message);
+                }
+            })
+            .catch(error => console.error('Error updating columns:', error));
     }
 
     // Add an event listener for the column slider
     const columnSlider = document.getElementById('num_cols_slider');
     if (columnSlider) {
-        columnSlider.addEventListener('input', function() {
+        columnSlider.addEventListener('input', function () {
             updateGridColumns(this.value);
         });
 
