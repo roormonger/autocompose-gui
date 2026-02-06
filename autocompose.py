@@ -24,7 +24,7 @@ def generate_compose(client, containers_to_inspect, include_all_env_vars, includ
     """
     Generates docker-compose configuration for the specified containers.
     """
-    compose_data = {'version': '3.8', 'services': {}}
+    compose_data = {'services': {}}
     networks_to_create = {}
     volumes_to_create = {}
     sys.stderr.write(f"[DEBUG AUTOCOMPOSE] Initializing. Containers to inspect: {containers_to_inspect}\n")
@@ -98,7 +98,7 @@ def generate_compose(client, containers_to_inspect, include_all_env_vars, includ
 
 
         if container.attrs['Config']['Env']:
-            service['environment'] = {}
+            service['environment'] = []
             sys.stderr.write(f"[DEBUG AUTOCOMPOSE] Service '{service_name}' - Processing ENV VARS...\n")
             for env_var_str in container.attrs['Config']['Env']:
                 key, value = "", None 
@@ -119,15 +119,14 @@ def generate_compose(client, containers_to_inspect, include_all_env_vars, includ
                     continue 
 
                 if include_all_env_vars: 
-                     service['environment'][key] = value
+                     service['environment'].append(f"{key}={value}" if value is not None else key)
                 elif has_value_assignment: 
-                    service['environment'][key] = value
+                    service['environment'].append(f"{key}={value}")
+
             if not service.get('environment'): 
                 if 'environment' in service: del service['environment'] 
-            elif service.get('environment'): 
-                sys.stderr.write(f"[DEBUG AUTOCOMPOSE] Service '{service_name}' - Final ENV: {service['environment']}\n")
             else: 
-                 if 'environment' in service: del service['environment']
+                sys.stderr.write(f"[DEBUG AUTOCOMPOSE] Service '{service_name}' - Final ENV: {service['environment']}\n")
 
         
         # Ports
@@ -214,6 +213,24 @@ def generate_compose(client, containers_to_inspect, include_all_env_vars, includ
             if service_networks: 
                 service['networks'] = service_networks
                 sys.stderr.write(f"[DEBUG AUTOCOMPOSE] Service '{service_name}': Networks: {service['networks']}\n")
+        
+        # Links / Depends On
+        # Docker Compose V2 prefers depends_on and implicit network discovery.
+        # We attempt to check for legacy Links and convert them somewhat or just ignore, 
+        # but if we find explicit dependencies we might add them. 
+        # However, HostConfig.Links gives us what this container links to.
+        if container.attrs['HostConfig'].get('Links'):
+            depends_on = []
+            for link in container.attrs['HostConfig']['Links']:
+                # Link format is often "/source_container:/target_container/alias"
+                parts = link.split(':')
+                if parts:
+                    linked_container = parts[0].strip('/')
+                    if linked_container != service_name and linked_container not in depends_on:
+                        depends_on.append(linked_container)
+            if depends_on:
+                service['depends_on'] = depends_on
+                sys.stderr.write(f"[DEBUG AUTOCOMPOSE] Service '{service_name}': Added depends_on based on Links: {depends_on}\n")
 
 
         # Restart Policy
